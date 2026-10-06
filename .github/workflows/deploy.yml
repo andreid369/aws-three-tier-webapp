@@ -1,0 +1,92 @@
+name: CI/CD CloudFormation Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'wordpress-infra.yaml'
+      - '.github/workflows/deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'wordpress-infra.yaml'
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # Required for AWS OIDC authentication
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: wordpress-stack
+  AVAILABILITY_ZONE_1: us-east-1a
+  AVAILABILITY_ZONE_2: us-east-1b
+  KEY_PAIR_NAME: wordpress-key
+  MY_IP_FOR_SSH: 0.0.0.0/0
+  DB_USER: wpadmin
+
+jobs:
+  validate:
+    name: Lint & Validate Template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: CloudFormation Lint (cfn-lint)
+        run: |
+          pip install cfn-lint
+          cfn-lint wordpress-infra.yaml
+
+      - name: Validate CloudFormation Template
+        run: |
+          aws cloudformation validate-template \
+            --template-body file://wordpress-infra.yaml \
+            --region ${{ env.AWS_REGION }}
+
+  deploy:
+    name: Deploy to AWS
+    needs: validate
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy CloudFormation Stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ env.STACK_NAME }}
+          template: wordpress-infra.yaml
+          no-fail-on-empty-changeset: "1"
+          capabilities: CAPABILITY_IAM
+          parameter-overrides: >-
+            AvailabilityZone1=${{ env.AVAILABILITY_ZONE_1 }},
+            AvailabilityZone2=${{ env.AVAILABILITY_ZONE_2 }},
+            KeyPairName=${{ env.KEY_PAIR_NAME }},
+            MyIPForSSH=${{ env.MY_IP_FOR_SSH }},
+            DBUser=${{ env.DB_USER }},
+            DBPassword=${{ secrets.DB_PASSWORD }}
+
+      - name: Retrieve Stack Outputs
+        run: |
+          echo "### Stack Deployment Outputs 🚀" >> $GITHUB_STEP_SUMMARY
+          aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs[*].[OutputKey, OutputValue]' \
+            --output table >> $GITHUB_STEP_SUMMARY
