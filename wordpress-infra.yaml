@@ -93,15 +93,15 @@ Parameters:
 
   AsgMinSize:
     Type: Number
-    Default: 2
+    Default: 1
 
   AsgMaxSize:
     Type: Number
-    Default: 3
+    Default: 1
 
   AsgDesiredCapacity:
     Type: Number
-    Default: 2
+    Default: 1
 
 # ---------------------------------------------------------------------------
 # RESOURCES
@@ -315,7 +315,7 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       MultiAZ: false
       PubliclyAccessible: false
-      BackupRetentionPeriod: 7
+      BackupRetentionPeriod: 1
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-mysql
