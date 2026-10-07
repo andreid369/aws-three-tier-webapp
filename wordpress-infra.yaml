@@ -303,7 +303,7 @@ Resources:
     Properties:
       DBInstanceIdentifier: !Sub ${EnvironmentName}-mysql
       Engine: mysql
-      EngineVersion: '8.4.11'
+      EngineVersion: '8.4'
       DBInstanceClass: !Ref DBInstanceClass
       AllocatedStorage: !Ref DBAllocatedStorage
       StorageType: gp3
