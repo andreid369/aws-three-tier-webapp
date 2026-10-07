@@ -52,7 +52,7 @@ jobs:
       - name: CloudFormation Lint (cfn-lint)
         run: |
           pip install cfn-lint
-          cfn-lint --ignore-checks W1011 wordpress-infra.yaml
+          cfn-lint -t wordpress-infra.yaml --ignore-checks W1011
 
       - name: Validate CloudFormation Template
         run: |
