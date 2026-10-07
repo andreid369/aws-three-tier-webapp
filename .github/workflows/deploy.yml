@@ -24,7 +24,7 @@ env:
   AVAILABILITY_ZONE_1: us-east-1a
   AVAILABILITY_ZONE_2: us-east-1b
   KEY_PAIR_NAME: wordpress-key
-  MY_IP_FOR_SSH: 0.0.0.0/0
+  MY_IP_FOR_SSH: 86.121.185.73/32
   DB_USER: wpadmin
 
 jobs:

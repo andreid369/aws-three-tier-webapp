@@ -53,8 +53,8 @@ Parameters:
 
   InstanceType:
     Type: String
-    Default: t2.micro
-    AllowedValues: [t2.micro]
+    Default: t3.micro
+    AllowedValues: [t3.micro]
 
   KeyPairName:
     Type: AWS::EC2::KeyPair::KeyName
@@ -62,7 +62,7 @@ Parameters:
 
   MyIPForSSH:
     Type: String
-    Default: 0.0.0.0/0
+    Default: 86.121.185.73/32
     Description: CIDR allowed to SSH into EC2 instances. Restrict this to your own IP/32 in production.
 
   DBName:
