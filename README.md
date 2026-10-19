@@ -15,6 +15,8 @@ This template deploys a scalable WordPress stack on AWS:
 ## Files
 
 - `wordpress-infra.yaml` — the CloudFormation template
+- `docs/architecture.png` — architecture diagram shown in this README
+- `docs/architecture.drawio` — editable source of the diagram (draw.io)
 - `README.md` — this guide
 
 ---
@@ -174,22 +176,8 @@ This stack is **not fully free-tier** in all configurations:
 
 ## Architecture summary
 
-```
-                         Internet
-                            |
-                     [Internet Gateway]
-                            |
-                 -------------------------
-                 |         VPC            |
-                 |                        |
-        AZ-1     |   Public Subnet 1      |     AZ-2
-                 |   - ALB, EC2 (ASG)     |
-                 |                        |   Public Subnet 2
-                 |   Private Subnet 1     |   - ALB, EC2 (ASG)
-                 |   - RDS (MySQL)        |
-                 |                        |   Private Subnet 2
-                 |                        |   - RDS subnet group
-                 -------------------------
-```
+![WordPress on AWS architecture: VPC across two Availability Zones with an Application Load Balancer, an Auto Scaling group of WordPress EC2 instances in the public subnets, RDS MySQL in the private subnets, CloudWatch, Systems Manager, and the GitHub Actions deployment path](docs/architecture.png)
+
+The diagram is drawn with the official AWS Architecture Icons. To edit it, open [`docs/architecture.drawio`](docs/architecture.drawio) in [draw.io](https://app.diagrams.net/) (File → Open from → Device), then export a new PNG over `docs/architecture.png` (File → Export as → PNG, zoom 200%). The icons are embedded, so it also works offline. Numbered badges match the "Request flow" legend inside the diagram.
 
 Traffic flow: **Internet → ALB (public subnets) → WordPress EC2 instances (ASG, public subnets) → RDS MySQL (private subnets)**.
