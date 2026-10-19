@@ -1,0 +1,12 @@
+# secrets and keys
+.env
+.env.*
+*.pem
+*.key
+# logs, OS and build output
+*.log
+.DS_Store
+.aws-sam/
+node_modules/
+build/
+dist/
