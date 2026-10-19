@@ -4,8 +4,8 @@ This template deploys a scalable WordPress stack on AWS:
 
 - A VPC with public and private subnets across **2 Availability Zones**
 - A **MySQL RDS** instance in the private subnets
-- An **Auto Scaling Group** of WordPress EC2 instances (`t2.micro`) in the public subnets, installed via EC2 User Data
-- An **Application Load Balancer (ALB)** distributing traffic to the ASG (min 2 / max 3 instances)
+- An **Auto Scaling Group** of WordPress EC2 instances (`t3.micro`) in the public subnets, installed via EC2 User Data
+- An **Application Load Balancer (ALB)** distributing traffic to the ASG (1 instance by default; you can scale to min 2 / max 3 later, see [Scaling behavior](#scaling-behavior))
 - A **CloudWatch Dashboard** showing EC2 CPU, RDS CPU, and ALB request count
 
 > **Note on regions:** AWS does not have a region literally called "us north." Use a real US region such as `us-east-1` (N. Virginia), `us-east-2` (Ohio), `us-west-1` (N. California), or `us-west-2` (Oregon). Everything below uses `us-east-1` as an example — swap in whichever US region you prefer.
@@ -15,6 +15,8 @@ This template deploys a scalable WordPress stack on AWS:
 ## Files
 
 - `wordpress-infra.yaml` — the CloudFormation template
+- `docs/architecture.png` — architecture diagram shown in this README
+- `docs/architecture.drawio` — editable source of the diagram (draw.io)
 - `README.md` — this guide
 
 ---
@@ -126,12 +128,37 @@ Open the `DashboardURL` output value, or in the console go to **CloudWatch → D
 
 ### Scaling behavior
 
-The Auto Scaling Group is configured with:
-- Minimum: 2 instances
-- Maximum: 3 instances
-- Desired: 2 instances (default)
+The Auto Scaling Group size is set by three template parameters. The **defaults are 1 / 1 / 1**, which runs a single `t3.micro` instance and keeps costs within the AWS Free Tier where your account is eligible (see [Cost awareness](#cost-awareness)):
 
-It launches instances across both configured public subnets/AZs for high availability, and only registers healthy instances (per ALB health checks on `/`) with the target group.
+| Parameter | Default | Scaled-out example |
+|-----------|---------|--------------------|
+| `AsgMinSize` | 1 | 2 |
+| `AsgMaxSize` | 1 | 3 |
+| `AsgDesiredCapacity` | 1 | 2 |
+
+You can scale out later (for example to min 2 / max 3 / desired 2, one instance per Availability Zone) just by changing these values and updating the stack. The template has no scaling policy, so the group only changes size when you change these parameters; it does not scale automatically on load.
+
+```bash
+aws cloudformation update-stack \
+  --stack-name wordpress-stack \
+  --template-body file://wordpress-infra.yaml \
+  --region us-east-1 \
+  --capabilities CAPABILITY_IAM \
+  --parameters \
+    ParameterKey=AsgMinSize,ParameterValue=2 \
+    ParameterKey=AsgMaxSize,ParameterValue=3 \
+    ParameterKey=AsgDesiredCapacity,ParameterValue=2 \
+    ParameterKey=AvailabilityZone1,UsePreviousValue=true \
+    ParameterKey=AvailabilityZone2,UsePreviousValue=true \
+    ParameterKey=KeyPairName,UsePreviousValue=true \
+    ParameterKey=MyIPForSSH,UsePreviousValue=true \
+    ParameterKey=DBUser,UsePreviousValue=true \
+    ParameterKey=DBPassword,UsePreviousValue=true
+```
+
+If you deploy with the GitHub Actions pipeline, add `AsgMinSize`, `AsgMaxSize` and `AsgDesiredCapacity` to the `parameter-overrides` in `.github/workflows/deploy.yml` instead, then push to `main`. The CloudWatch dashboard and ALB keep working as instances are added.
+
+The group launches instances across both configured public subnets/AZs (so two or more instances end up one per Availability Zone), and only registers healthy instances (per ALB health checks on `/`) with the target group.
 
 ---
 
@@ -165,7 +192,8 @@ Note: the RDS instance has `DeletionPolicy: Snapshot`, so AWS will automatically
 ## Cost awareness
 
 This stack is **not fully free-tier** in all configurations:
-- 2–3 × `t2.micro` EC2 instances — free tier covers 750 hrs/month of **one** t2.micro, so running 2+ continuously will incur charges after the free tier hours are used.
+- 1 × `t3.micro` EC2 instance (the default 1 / 1 / 1 sizing) — AWS lists `t3.micro` as eligible for the Free Plan on new accounts, where usage is covered by your free credits. Accounts created before 15 July 2025 are on the older 12-month Free Tier, which covers `t2.micro` rather than `t3.micro` in most regions, so check **Billing → Free Tier** for your own account.
+- Scaling out to 2–3 `t3.micro` instances (see [Scaling behavior](#scaling-behavior)) runs several instances at once, which uses your credits faster or incurs charges once the free allowance is used up.
 - `db.t3.micro` RDS — check current free-tier eligibility for RDS in your account.
 - ALB — charged hourly plus per-LCU, not free-tier eligible.
 - Remember to delete the stack when you're done experimenting to avoid ongoing charges.
@@ -174,22 +202,8 @@ This stack is **not fully free-tier** in all configurations:
 
 ## Architecture summary
 
-```
-                         Internet
-                            |
-                     [Internet Gateway]
-                            |
-                 -------------------------
-                 |         VPC            |
-                 |                        |
-        AZ-1     |   Public Subnet 1      |     AZ-2
-                 |   - ALB, EC2 (ASG)     |
-                 |                        |   Public Subnet 2
-                 |   Private Subnet 1     |   - ALB, EC2 (ASG)
-                 |   - RDS (MySQL)        |
-                 |                        |   Private Subnet 2
-                 |                        |   - RDS subnet group
-                 -------------------------
-```
+![WordPress on AWS architecture: VPC across two Availability Zones with an Application Load Balancer, an Auto Scaling group of WordPress EC2 instances in the public subnets, RDS MySQL in the private subnets, CloudWatch, Systems Manager, and the GitHub Actions deployment path](docs/architecture.png)
+
+The diagram is drawn with the official AWS Architecture Icons. To edit it, open [`docs/architecture.drawio`](docs/architecture.drawio) in [draw.io](https://app.diagrams.net/) (File → Open from → Device), then export a new PNG over `docs/architecture.png` (File → Export as → PNG, zoom 200%). The icons are embedded, so it also works offline. Numbered badges match the "Request flow" legend inside the diagram.
 
 Traffic flow: **Internet → ALB (public subnets) → WordPress EC2 instances (ASG, public subnets) → RDS MySQL (private subnets)**.
