@@ -12,7 +12,12 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:andreid369/aws-three-tier-webapp:*"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:andreid369@297943495/aws-three-tier-webapp@1407815886:ref:refs/heads/main",
+            "repo:andreid369@297943495/aws-three-tier-webapp@1407815886:pull_request",
+            "repo:andreid369/aws-three-tier-webapp:ref:refs/heads/main",
+            "repo:andreid369/aws-three-tier-webapp:pull_request"
+          ]
         }
       }
     }
